@@ -32,6 +32,7 @@ label.fld{display:block;font-size:13px;color:#9a9ab0;margin-top:12px}
 .chip.ok{background:#134e35;color:#3dd68c}.chip.nok{background:#5a1d1d;color:#ff7a7a}
 .chip.pend{background:#33333f;color:#9a9ab0}
 .chip.foto{background:#2a2a3c;color:#8f7bff}
+.chip.welder{background:#2a2a3c;color:#ffd479}
 .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));width:58px;height:58px;
  border-radius:50%;background:#8f7bff;color:#fff;font-size:32px;border:none;box-shadow:0 4px 18px rgba(0,0,0,.5)}
 .muted{color:#9a9ab0;font-size:13px}
@@ -39,6 +40,7 @@ label.fld{display:block;font-size:13px;color:#9a9ab0;margin-top:12px}
 .oknok{display:flex;gap:8px;margin-top:10px}
 .oknok button{flex:1;padding:12px;border-radius:11px;border:none;font-size:16px;font-weight:700;color:#fff}
 .oknok .ok{background:#22a06b}.oknok .nok{background:#d63a3a}
+.chipsrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:flex-end;z-index:50}
 .sheet{background:#1e1e2a;border-radius:18px 18px 0 0;width:100%;max-height:85vh;overflow:auto;
  padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
@@ -55,6 +57,12 @@ label.fld{display:block;font-size:13px;color:#9a9ab0;margin-top:12px}
 </head>
 <body>
 <script>window.onerror=function(m,s,l,c){document.body.innerHTML='<pre class="err">CHYBA: '+m+'\nŘádek: '+l+':'+c+'</pre>'};</script>
+<script>window.addEventListener('unhandledrejection',function(e){
+  var d=document.createElement('pre');
+  d.style.cssText='background:#fff;color:#c00;padding:14px;font-size:12px;white-space:pre-wrap;z-index:10001;position:fixed;left:8px;right:8px;top:8px;border-radius:8px';
+  d.textContent='CHYBA (asynchronní): '+(e.reason&&e.reason.message||e.reason);
+  document.body.appendChild(d);
+});</script>
 <div id="app" class="wrap"></div>
 <script>
 /* ================= data ================= */
@@ -74,6 +82,17 @@ function parseRange(str){
     else if(/^\d+$/.test(p))out.add(+p);
   });
   return [...out].sort((a,b)=>a-b);
+}
+
+/* ================= debug zelená lišta ================= */
+function dbg(msg){
+  let d=document.getElementById('dbg');
+  if(!d){d=document.createElement('div');d.id='dbg';
+    d.style.cssText='position:fixed;left:8px;top:8px;right:8px;background:#000;color:#0f0;'
+      +'font-size:11px;padding:8px;border-radius:8px;z-index:10000;font-family:monospace;'
+      +'white-space:pre-wrap;pointer-events:none';
+    document.body.appendChild(d);}
+  d.textContent=msg;
 }
 
 /* ================= loader ================= */
@@ -112,29 +131,56 @@ function fileToJPEG(file,maxDim,q){return new Promise((res,rej)=>{
   img.onerror=()=>rej(new Error('Obrázek nelze přečíst.'));
   img.src=URL.createObjectURL(file);
 })}
-function capture(cb){const i=document.createElement('input');i.type='file';i.accept='image/*';i.capture='environment';i.onchange=()=>i.files[0]&&cb(i.files[0]);i.click()}
+
+function capture(cb){
+  const i=document.createElement('input');
+  i.type='file';i.accept='image/*';
+  i.style.display='none';
+  document.body.appendChild(i);
+  dbg('Otevírám fotoaparát / výběr fotky…');
+  i.addEventListener('change',()=>{
+    dbg('Fotka vybrána, zpracovávám…');
+    const f=i.files[0];
+    i.remove();
+    if(f)cb(f);
+  });
+  i.addEventListener('cancel',()=>{dbg('Výběr fotky zrušen');i.remove()});
+  i.click();
+}
 
 /* ================= sken názvu výkresu ================= */
 function scanInto(setName){
   capture(async f=>{
-    showLoader('Připravuji fotku…');
     try{
-      await ensureTesseract();
-      setLoader('Startuji OCR…');
+      dbg('Dekóduji fotku…');
+      showLoader('Připravuji fotku…');
       const url=await fileToJPEG(f,1400,.8);
+      dbg('Foto OK, připravuji OCR…');
+      await ensureTesseract();
+      dbg('OCR připraveno, čtu text…');
+      setLoader('Startuji OCR…');
       const r=await Tesseract.recognize(url,'eng',{logger:m=>{
-        if(m.status==='recognizing text')setLoader('Čtu text… '+Math.round(m.progress*100)+' %');
+        if(m.status==='recognizing text'){
+          setLoader('Čtu text… '+Math.round(m.progress*100)+' %');
+          dbg('Čtu text… '+Math.round(m.progress*100)+' %');
+        }
       }});
       const lines=(r.data.text||'').split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=2);
+      dbg('OCR hotovo ('+lines.length+' řádků)');
       hideLoader();
       if(!lines.length){
         alert('Nic nerozpoznáno.\nTip: foť jen roh výkresu s rámečkem, dobře osvětlený, bez odlesku.');
         return;
       }
       pickLine(lines,url,setName);
-    }catch(e){hideLoader();alert('Sken selhal: '+e.message+'\nZadej název ručně.')}
+    }catch(e){
+      hideLoader();
+      dbg('CHYBA: '+((e&&e.message)||e));
+      alert('Sken selhal: '+((e&&e.message)||e));
+    }
   });
 }
+
 function pickLine(lines,imgUrl,setName){
   const ov=document.createElement('div');ov.className='overlay';
   const sheet=document.createElement('div');sheet.className='sheet';
@@ -202,7 +248,10 @@ function renderAdd(){
     +'<label class="fld">Svary (např. 1-10 nebo 1-3,7)</label>'
     +'<input type="text" id="rg" inputmode="text" placeholder="1-10">'
     +'<label class="fld">Přednastavený typ všech svarů</label>'
-    +'<div class="seg" id="ty"><button data-t="H" class="on">H – ruční</button><button data-t="F">F – automat</button></div></div>'
+    +'<div class="seg" id="ty"><button data-t="H" class="on">H – ruční</button><button data-t="F">F – automat</button></div>'
+    +'<label class="fld">Číslo svářeče (3 číslice – vyplní se všem svarům)</label>'
+    +'<input type="text" id="wl" inputmode="numeric" maxlength="3" placeholder="např. 137">'
+    +'</div>'
     +'<div class="card"><button class="btn" id="cr">✓ Vytvořit kontrolu</button>'
     +'<p class="muted" id="hint" style="display:none">Formát: 1-10 (rozsah), 1,3,5 (výčet), nebo kombinace 1-3,7</p></div>';
   let type='H';
@@ -217,9 +266,10 @@ function renderAdd(){
   document.getElementById('cr').onclick=()=>{
     const name=document.getElementById('nm').value.trim();
     const nums=parseRange(rg.value);
+    const welder=document.getElementById('wl').value.replace(/\D/g,'').slice(0,3);
     if(!name||!nums.length){alert('Zadej název výkresu a čísla svarů.');return}
     const rec={id:uid(),name:name,created:Date.now(),
-      welds:nums.map(n=>({n:n,type:type,status:'pend',label:null}))};
+      welds:nums.map(n=>({n:n,type:type,status:'pend',label:null,welder:welder||null}))};
     records.unshift(rec);save();go({v:'detail',id:rec.id});
   };
 }
@@ -230,12 +280,21 @@ function renderDetail(id){
   if(!rec)return go({v:'home'});
   app.innerHTML='<div class="top"><button class="back" id="bk">‹</button><h1>'+esc(rec.name)+'</h1></div>'
     +'<p class="muted" id="prog"></p>'
+    +'<div class="card"><label class="fld">Svářeč – vyplní číslo VŠEM svarům (individuálně změněné přepíše)</label>'
+    +'<input type="text" id="wlAll" inputmode="numeric" maxlength="3" placeholder="např. 137">'
+    +'<button class="btn sec" id="wlApply" style="margin-top:8px">👷 Přiřadit všem</button></div>'
     +rec.welds.map(weldRowHTML).join('')
     +'<div style="display:flex;gap:8px;margin-top:14px">'
     +'<button class="btn sec" id="allok" style="margin:0">✓ Všechny OK</button>'
     +'<button class="btn sec" id="csv" style="margin:0">⬇ CSV</button></div>';
   document.getElementById('bk').onclick=()=>go({v:'home'});
   rec.welds.forEach(w=>bindRow(rec,w));
+  document.getElementById('wlApply').onclick=()=>{
+    const wl=document.getElementById('wlAll').value.replace(/\D/g,'').slice(0,3);
+    if(!wl){alert('Zadej 3místné číslo svářeče.');return}
+    rec.welds.forEach(w=>w.welder=wl);
+    save();renderDetail(id);
+  };
   document.getElementById('allok').onclick=()=>{
     if(confirm('Označit všechny svary tohoto výkresu jako OK?')){
       rec.welds.forEach(w=>w.status='ok');save();renderDetail(id);
@@ -248,7 +307,7 @@ function renderDetail(id){
 function refreshProg(rec){
   const done=rec.welds.filter(w=>w.status!=='pend').length;
   const p=document.getElementById('prog');
-  if(p)p.textContent=done+'/'+rec.welds.length+' zkontrolováno · F/H přepne typ, 📸 pojmenuje fotku z endoskopu';
+  if(p)p.textContent=done+'/'+rec.welds.length+' zkontrolováno · F/H přepne typ, 👷 svářeč, 📸 fotka';
 }
 
 function weldRowHTML(w){
@@ -257,8 +316,9 @@ function weldRowHTML(w){
   return '<div class="card" data-row="'+w.n+'">'
     +'<div class="row"><b>Svar '+w.n+'</b>'
     +'<span class="chip '+chipCls+'">'+chipTxt+'</span></div>'
-    +'<div class="row" style="margin-top:10px">'
+    +'<div class="chipsrow">'
     +'<button class="typechip" data-toggle="'+w.n+'">'+w.type+'</button>'
+    +'<span class="chip welder" data-wl="'+w.n+'">👷 '+esc(w.welder||'svářeč?')+'</span>'
     +'<span class="chip foto" data-lbl="'+w.n+'">'+(w.label?'📸 '+esc(w.label):'📸 Foto')+'</span>'
     +'</div>'
     +'<div class="oknok">'
@@ -274,6 +334,7 @@ function bindRow(rec,w){
   el.querySelector('[data-ok]').onclick=()=>{w.status=w.status==='ok'?'pend':'ok';save();refreshRow(rec,w)};
   el.querySelector('[data-nok]').onclick=()=>{w.status=w.status==='nok'?'pend':'nok';save();refreshRow(rec,w)};
   el.querySelector('[data-lbl]').onclick=()=>editLabel(rec,w);
+  el.querySelector('[data-wl]').onclick=()=>editWelder(rec,w);
 }
 
 function refreshRow(rec,w){
@@ -281,6 +342,29 @@ function refreshRow(rec,w){
   if(el)el.outerHTML=weldRowHTML(w);
   bindRow(rec,w);
   refreshProg(rec);
+}
+
+/* ---------- číslo svářeče u svaru ---------- */
+function editWelder(rec,w){
+  const ov=document.createElement('div');ov.className='overlay';
+  const sheet=document.createElement('div');sheet.className='sheet';
+  sheet.innerHTML='<div class="row"><b>Svářeč · Svar '+w.n+'</b>'
+    +'<button class="btn sec" style="width:auto;margin:0" id="wcClose">✕</button></div>'
+    +'<p class="muted">Zadej 3místné číslo svářeče tohoto svaru.</p>'
+    +'<input type="text" id="wcNum" inputmode="numeric" maxlength="3" placeholder="např. 137" value="'+esc(w.welder||'')+'">'
+    +'<button class="btn" id="wcSave" style="margin-top:14px">✓ Uložit</button>'
+    +(w.welder?'<button class="btn sec" id="wcDel" style="color:#ff7a7a">🗑 Vymazat svářeče</button>':'');
+  ov.appendChild(sheet);document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  sheet.querySelector('#wcClose').onclick=()=>ov.remove();
+  const input=sheet.querySelector('#wcNum');
+  setTimeout(()=>input.focus(),100);
+  sheet.querySelector('#wcSave').onclick=()=>{
+    const v=input.value.replace(/\D/g,'').slice(0,3);
+    w.welder=v||null;save();ov.remove();refreshRow(rec,w);
+  };
+  const del=sheet.querySelector('#wcDel');
+  if(del)del.onclick=()=>{w.welder=null;save();ov.remove();refreshRow(rec,w)};
 }
 
 /* ---------- název fotky z endoskopu (F2360 / H2360) ---------- */
@@ -320,8 +404,8 @@ function editLabel(rec,w){
 
 /* ---------- export CSV ---------- */
 function exportCSV(){
-  const rows=[['ISO','Svar','Typ','Vysledek','Foto']];
-  records.forEach(r=>r.welds.forEach(w=>rows.push([r.name,w.n,w.type,
+  const rows=[['ISO','Svar','Typ','Svarer','Vysledek','Foto']];
+  records.forEach(r=>r.welds.forEach(w=>rows.push([r.name,w.n,w.type,w.welder||'',
     {ok:'OK',nok:'NOK',pend:''}[w.status],w.label||''])));
   const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
   const a=document.createElement('a');
