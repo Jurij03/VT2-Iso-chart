@@ -1,370 +1,288 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VT2 ISO Evidence</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { -webkit-tap-highlight-color: transparent; }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#14141c">
+<title>ISO Kontroly</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#14141c;color:#ececf1;
+ padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.wrap{max-width:640px;margin:0 auto;padding:14px}
+.top{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.top h1{font-size:19px;margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.back{background:none;border:none;color:#8f7bff;font-size:24px;line-height:1;padding:2px 10px}
+.btn{display:block;width:100%;border:none;border-radius:12px;padding:13px;font-size:16px;font-weight:600;
+ background:#8f7bff;color:#fff;cursor:pointer;margin-top:8px}
+.btn.sec{background:#2a2a3a;color:#ececf1}
+.btn.ok{background:#22a06b}.btn.nok{background:#d63a3a}
+.btn.dim{opacity:.35}
+input[type=text]{width:100%;background:#252533;border:1px solid #34344a;border-radius:10px;
+ color:#ececf1;padding:12px;font-size:16px;margin-top:6px}
+label.fld{display:block;font-size:13px;color:#9a9ab0;margin-top:12px}
+.card{background:#1e1e2a;border:1px solid #2a2a3c;border-radius:14px;padding:14px;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.list-item{cursor:pointer}
+.badge{font-weight:700;font-size:13px;background:#34344a;border-radius:8px;padding:3px 9px}
+.chip{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px}
+.chip.ok{background:#134e35;color:#3dd68c}.chip.nok{background:#5a1d1d;color:#ff7a7a}
+.chip.pend{background:#33333f;color:#9a9ab0}
+.fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));width:58px;height:58px;
+ border-radius:50%;background:#8f7bff;color:#fff;font-size:32px;border:none;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+.photo{width:100%;border-radius:10px;margin-top:8px}
+.seg{display:flex;gap:8px;margin-top:6px}
+.seg button{flex:1;padding:11px;border-radius:10px;border:1px solid #34344a;background:#252533;color:#9a9ab0;font-size:15px;font-weight:600}
+.seg button.on{background:#8f7bff;color:#fff;border-color:#8f7bff}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:flex-end;z-index:50}
+.sheet{background:#1e1e2a;border-radius:18px 18px 0 0;width:100%;max-height:85vh;overflow:auto;
+ padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+.muted{color:#9a9ab0;font-size:13px}
+.line-opt{display:block;width:100%;text-align:left;background:#252533;border:none;border-radius:10px;color:#ececf1;padding:12px;margin-top:6px;font-size:15px}
+.empty{text-align:center;color:#9a9ab0;padding:60px 20px}
+.delete{background:none;border:none;color:#ff7a7a;font-size:22px;padding:4px 8px}
+.loader{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:99}
+.loader div{background:#1e1e2a;border-radius:14px;padding:20px 26px;font-size:15px}
+</style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans pb-24">
+<body>
+<div id="app" class="wrap"></div>
+<script>
+/* ---------- data ---------- */
+const LS='iso_records_v1';
+let records;
+try{records=JSON.parse(localStorage.getItem(LS)||'[]')}catch(e){records=[]}
+const save=()=>localStorage.setItem(LS,JSON.stringify(records));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-    <!-- Horní lišta -->
-    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-30 px-4 py-3 flex justify-between items-center shadow-md">
-        <div>
-            <h1 class="font-bold text-lg text-blue-400">VT2 ISO Evidence</h1>
-            <p class="text-xs text-slate-400">Svařování a endoskopická kontrola</p>
-        </div>
-        <div class="flex gap-2">
-            <button onclick="exportJSON()" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-600">Záloha</button>
-            <label class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-600 cursor-pointer">
-                Obnovit <input type="file" id="importFile" onchange="importJSON(event)" class="hidden" accept=".json">
-            </label>
-        </div>
-    </header>
+/* rozparsuje "1-10", "1,3,5", "1-3,7" */
+function parseRange(str){
+  const out=new Set();
+  str.split(/[,;\s]+/).forEach(p=>{
+    const m=p.match(/^(\d+)\s*-\s*(\d+)$/);
+    if(m){const a=+m[1],b=+m[2];if(a<=b&&b-a<2000)for(let i=a;i<=b;i++)out.add(i)}
+    else if(/^\d+$/.test(p))out.add(+p);
+  });
+  return [...out].sort((a,b)=>a-b);
+}
 
-    <!-- Hlavní obsah -->
-    <main class="max-w-md mx-auto p-4 space-y-4">
+/* ---------- fotky: IndexedDB ---------- */
+function photoDB(){return new Promise((res,rej)=>{const r=indexedDB.open('iso_photos',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('photos');
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+const photoPut=(id,data)=>photoDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').put(data,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)}));
+const photoGet=id=>photoDB().then(db=>new Promise((res,rej)=>{const rq=db.transaction('photos').objectStore('photos').get(id);rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error)}));
+const photoDel=id=>photoDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)}));
 
-        <!-- Tlačítko pro nové ISO -->
-        <div>
-            <button onclick="openNewIsoModal()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm active:scale-95 transition-transform">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                + Přidat novou izometrii (ISO)
-            </button>
-        </div>
+/* soubor z kamery zmenši a převeď na JPEG */
+function fileToJPEG(file,maxDim,q){return new Promise((res,rej)=>{
+  const img=new Image();
+  img.onload=()=>{
+    const s=Math.min(1,maxDim/Math.max(img.width,img.height));
+    const c=document.createElement('canvas');
+    c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(img.src);
+    res(c.toDataURL('image/jpeg',q));
+  };
+  img.onerror=()=>rej(new Error('Obrázek nelze přečíst.'));
+  img.src=URL.createObjectURL(file);
+})}
+function capture(cb){const i=document.createElement('input');i.type='file';i.accept='image/*';i.capture='environment';i.onchange=()=>i.files[0]&&cb(i.files[0]);i.click()}
 
-        <!-- Filtr a vyhledávání -->
-        <div class="relative">
-            <input type="text" id="searchInput" oninput="renderApp()" placeholder="Hledat izometrii nebo svar..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500">
-        </div>
+/* ---------- loader ---------- */
+let loaderEl=null;
+function showLoader(t){loaderEl=document.createElement('div');loaderEl.className='loader';loaderEl.innerHTML='<div>'+esc(t)+'</div>';document.body.appendChild(loaderEl)}
+function setLoader(t){if(loaderEl)loaderEl.firstChild.textContent=t}
+function hideLoader(){if(loaderEl)loaderEl.remove();loaderEl=null}
 
-        <!-- Seznam izometrií -->
-        <div id="isoList" class="space-y-4">
-            <!-- Dynamicky generováno -->
-        </div>
+/* ---------- OCR (rozpoznání názvu z fotky výkresu) ---------- */
+function ensureTesseract(){return new Promise((res,rej)=>{
+  if(window.Tesseract)return res();
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  s.onload=res;s.onerror=()=>rej(new Error('OCR se nepovedlo stáhnout – jsi online?'));
+  document.head.appendChild(s)})}
+function scanInto(setName){
+  capture(async f=>{
+    showLoader('Připravuji OCR…');
+    try{
+      await ensureTesseract();
+      const url=await fileToJPEG(f,1700,.8);
+      const r=await Tesseract.recognize(url,'eng',{logger:m=>{
+        if(m.status==='recognizing text')setLoader('Čtu text… '+Math.round(m.progress*100)+'%');
+      }});
+      const lines=r.data.text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=2);
+      hideLoader();
+      pickLine(lines,url,setName);
+    }catch(e){hideLoader();alert('Sken selhal: '+e.message+'\nZadej název ručně.')}
+  });
+}
+function pickLine(lines,imgUrl,setName){
+  const ov=document.createElement('div');ov.className='overlay';
+  const sheet=document.createElement('div');sheet.className='sheet';
+  sheet.innerHTML='<div class="row"><b>Vyber řádek s názvem</b><button class="btn sec" style="width:auto;margin:0" id="plClose">✕</button></div>'
+    +'<img class="photo" src="'+imgUrl+'">'
+    +(lines.length?'<p class="muted">Klepnutím na rozpoznaný řádek ho použiješ jako název ISO:</p>'
+                  :'<p class="muted">Text nenalezen – zkus lepší světlo, menší vzdálenost, nebo zadej název ručně.</p>');
+  lines.slice(0,12).forEach(l=>{
+    const b=document.createElement('button');b.className='line-opt';b.textContent=l;
+    b.onclick=()=>{setName(l);ov.remove()};sheet.appendChild(b);
+  });
+  ov.appendChild(sheet);document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  sheet.querySelector('#plClose').onclick=()=>ov.remove();
+}
 
-    </main>
+/* ---------- obrazovky ---------- */
+const app=document.getElementById('app');
+let route={v:'home'};
+function go(v){route=v;render()}
+function render(){
+  const r=route;
+  if(r.v==='home')renderHome();
+  else if(r.v==='add')renderAdd();
+  else if(r.v==='detail')renderDetail(r.id);
+  else if(r.v==='weld')renderWeld(r.id,r.num);
+  window.scrollTo(0,0);
+}
+function statusChip(w){return w.status==='ok'?'<span class="chip ok">OK</span>':w.status==='nok'?'<span class="chip nok">NOK</span>':'<span class="chip pend">—</span>'}
 
-    <!-- MODAL: Přidání ISO -->
-    <div id="isoModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-        <div class="bg-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-slate-700 p-4 space-y-4">
-            <h3 class="font-bold base text-slate-100">Nová izometrie</h3>
-            
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1 font-semibold text-blue-400">Název / Číslo ISO:</label>
-                    <input type="text" id="inputIsoName" placeholder="např. GSB-45-060-287-0,75-K153" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500 font-medium">
-                </div>
+function renderHome(){
+  let h='<div class="top"><h1>ISO Kontroly</h1></div>';
+  if(!records.length){
+    h+='<div class="empty">Žádné kontroly.<br>Klepnutím na + přidej první ISO výkres.</div>';
+  }else{
+    h+=records.map(rec=>{
+      const done=rec.welds.filter(w=>w.status!=='pend').length;
+      return '<div class="card list-item" data-open="'+rec.id+'"><div class="row">'
+        +'<div><b>'+esc(rec.name)+'</b><div class="muted">'+rec.welds.length+' svarů · '
+        +done+'/'+rec.welds.length+' zkontrolováno · '+new Date(rec.created).toLocaleDateString('cs')+'</div></div>'
+        +'<button class="delete" data-del="'+rec.id+'">🗑</button></div></div>';
+    }).join('');
+  }
+  h+='<button class="fab" id="add">+</button>';
+  app.innerHTML=h;
+  document.getElementById('add').onclick=()=>go({v:'add'});
+  app.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>go({v:'detail',id:el.dataset.open}));
+  app.querySelectorAll('[data-del]').forEach(el=>el.onclick=e=>{e.stopPropagation();delRec(el.dataset.del)});
+}
+function delRec(id){
+  if(!confirm('Smazat celou kontrolu včetně fotek?'))return;
+  const rec=records.find(r=>r.id===id);
+  if(rec)rec.welds.forEach(w=>w.photo&&photoDel(w.photo));
+  records=records.filter(r=>r.id!==id);save();render();
+}
 
-                <!-- Rychlé tlačítko pro otevření foťáku / galerii -->
-                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
-                    <div>
-                        <p class="text-xs font-semibold text-slate-300">Vyfotit výkres / razítko</p>
-                        <p class="text-[11px] text-slate-400">Otevře foťák pro přehled.</p>
-                    </div>
-                    <label class="bg-slate-700 hover:bg-slate-600 text-xs text-white font-medium px-3 py-2 rounded-lg cursor-pointer flex items-center gap-1.5 border border-slate-600">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                        Foťák <input type="file" accept="image/*" capture="environment" onchange="handlePhotoCapture(event)" class="hidden">
-                    </label>
-                </div>
-            </div>
+function renderAdd(){
+  app.innerHTML=
+    '<div class="top"><button class="back" id="bk">‹</button><h1>Nová kontrola</h1></div>'
+    +'<div class="card">'
+    +'<label class="fld">Název ISO výkresu</label>'
+    +'<input type="text" id="nm" placeholder="např. ISO-12345-A" autocapitalize="characters">'
+    +'<button class="btn sec" id="scan">📷 Skenovat název z výkresu</button></div>'
+    +'<div class="card">'
+    +'<label class="fld">Svary (např. 1-10 nebo 1-3,7)</label>'
+    +'<input type="text" id="rg" inputmode="numeric" placeholder="1-10">'
+    +'<label class="fld">Přednastavený typ všech svarů</label>'
+    +'<div class="seg" id="ty"><button data-t="H" class="on">H – ruční</button><button data-t="F">F – automat</button></div></div>'
+    +'<div class="card"><button class="btn" id="cr">✓ Vytvořit kontrolu</button>'
+    +'<p class="muted" id="hint" style="display:none">Formát: 1-10 (rozsah), 1,3,5 (výčet), nebo kombinace 1-3,7</p></div>';
+  let type='H';
+  document.getElementById('bk').onclick=()=>go({v:'home'});
+  document.getElementById('scan').onclick=()=>scanInto(t=>document.getElementById('nm').value=t);
+  app.querySelectorAll('#ty button').forEach(b=>b.onclick=()=>{
+    type=b.dataset.t;
+    app.querySelectorAll('#ty button').forEach(x=>x.classList.toggle('on',x===b));
+  });
+  const rg=document.getElementById('rg');
+  rg.oninput=()=>{document.getElementById('hint').style.display=parseRange(rg.value).length?'none':'block'};
+  document.getElementById('cr').onclick=()=>{
+    const name=document.getElementById('nm').value.trim();
+    const nums=parseRange(rg.value);
+    if(!name||!nums.length){alert('Zadej název výkresu a čísla svarů.');return}
+    const rec={id:uid(),name:name,created:Date.now(),
+      welds:nums.map(n=>({n:n,type:type,status:'pend',photo:null}))};
+    records.unshift(rec);save();go({v:'detail',id:rec.id});
+  };
+}
 
-            <div class="flex gap-2 pt-2">
-                <button onclick="saveIsoEntry()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow">Uložit ISO</button>
-                <button onclick="closeIsoModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2.5 rounded-lg text-sm">Zrušit</button>
-            </div>
-        </div>
-    </div>
+function renderDetail(id){
+  const rec=records.find(r=>r.id===id);
+  if(!rec)return go({v:'home'});
+  app.innerHTML='<div class="top"><button class="back" id="bk">‹</button><h1>'+esc(rec.name)+'</h1></div>'
+    +rec.welds.map(w=>'<div class="card list-item" data-w="'+w.n+'"><div class="row"><b>Svar '+w.n+'</b>'
+      +'<span class="badge">'+w.type+'</span>'+statusChip(w)+'</div></div>').join('')
+    +'<button class="btn sec" id="csv" style="margin-top:14px">⬇ Export CSV (všechny kontroly)</button>';
+  document.getElementById('bk').onclick=()=>go({v:'home'});
+  app.querySelectorAll('[data-w]').forEach(el=>el.onclick=()=>go({v:'weld',id:id,num:+el.dataset.w}));
+  document.getElementById('csv').onclick=exportCSV;
+}
 
-    <!-- MODAL: Přidání svarů (Rozsah 1-10) -->
-    <div id="weldsModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-        <div class="bg-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-slate-700 p-4 space-y-4">
-            <h3 class="font-bold text-base text-slate-100">Přidat svary k ISO</h3>
-            <p class="text-xs text-slate-400" id="weldsModalSub">ISO: -</p>
-            
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">Zadejte čísla svarů (např. 1-10 nebo 1, 3, 5-8):</label>
-                <input type="text" id="inputWeldsRange" placeholder="1-10" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 font-mono focus:outline-none focus:border-blue-500">
-            </div>
+function renderWeld(id,num){
+  const rec=records.find(r=>r.id===id);
+  const w=rec&&rec.welds.find(x=>x.n===num);
+  if(!w)return go({v:'detail',id:id});
+  app.innerHTML='<div class="top"><button class="back" id="bk">‹</button><h1>Svar '+w.n+' · '+esc(rec.name)+'</h1></div>'
+    +'<div class="card"><label class="fld">Typ svaření</label>'
+    +'<div class="seg" id="ty"><button data-t="H"'+(w.type==='H'?' class="on"':'')+'>H – ruční</button>'
+    +'<button data-t="F"'+(w.type==='F'?' class="on"':'')+'>F – automat</button></div></div>'
+    +'<div class="card"><label class="fld">Výsledek kontroly</label>'
+    +'<div style="display:flex;gap:8px;margin-top:6px">'
+    +'<button class="btn ok'+(w.status==='ok'?'':' dim')+'" id="ok" style="margin:0">OK</button>'
+    +'<button class="btn nok'+(w.status==='nok'?'':' dim')+'" id="nok" style="margin:0">NOK</button></div></div>'
+    +'<div class="card"><label class="fld">Foto svaru</label>'
+    +'<div id="ph"></div>'
+    +'<button class="btn sec" id="take">📷 '+(w.photo?'Přefotit':'Vyfotit svar')+'</button>'
+    +(w.photo?'<button class="btn sec" id="rm" style="color:#ff7a7a">🗑 Smazat foto</button>':'')
+    +'</div>';
+  document.getElementById('bk').onclick=()=>go({v:'detail',id:id});
+  app.querySelectorAll('#ty button').forEach(b=>b.onclick=()=>{
+    w.type=b.dataset.t;save();
+    app.querySelectorAll('#ty button').forEach(x=>x.classList.toggle('on',x===b));
+  });
+  const setBtns=()=>{
+    document.getElementById('ok').classList.toggle('dim',w.status!=='ok');
+    document.getElementById('nok').classList.toggle('dim',w.status!=='nok');
+  };
+  document.getElementById('ok').onclick=()=>{w.status=w.status==='ok'?'pend':'ok';save();setBtns()};
+  document.getElementById('nok').onclick=()=>{w.status=w.status==='nok'?'pend':'nok';save();setBtns()};
+  const ph=document.getElementById('ph');
+  if(w.photo)photoGet(w.photo).then(d=>{if(d)ph.innerHTML='<img class="photo" src="'+d+'">'});
+  document.getElementById('take').onclick=()=>capture(async f=>{
+    showLoader('Ukládám foto…');
+    try{
+      const url=await fileToJPEG(f,1500,.72);
+      const pid=uid();await photoPut(pid,url);
+      if(w.photo)photoDel(w.photo);
+      w.photo=pid;save();hideLoader();render();
+    }catch(e){hideLoader();alert(e.message)}
+  });
+  const rm=document.getElementById('rm');
+  if(rm)rm.onclick=()=>{photoDel(w.photo);w.photo=null;save();render()};
+}
 
-            <div class="flex gap-2 pt-2">
-                <button onclick="confirmAddWelds()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg text-sm">Vygenerovat svary</button>
-                <button onclick="closeWeldsModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2.5 rounded-lg text-sm">Zrušit</button>
-            </div>
-        </div>
-    </div>
+function exportCSV(){
+  const rows=[['ISO','Svar','Typ','Vysledek']];
+  records.forEach(r=>r.welds.forEach(w=>rows.push([r.name,w.n,w.type,{ok:'OK',nok:'NOK',pend:''}[w.status]])));
+  const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='iso_kontroly_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
 
-    <script>
-        let db = JSON.parse(localStorage.getItem('vt2_iso_db') || '[]');
-        let currentIsoId = null;
-
-        function saveData() {
-            localStorage.setItem('vt2_iso_db', JSON.stringify(db));
-            renderApp();
-        }
-
-        function openNewIsoModal() {
-            document.getElementById('isoModal').classList.remove('hidden');
-            document.getElementById('inputIsoName').value = '';
-        }
-
-        function closeIsoModal() {
-            document.getElementById('isoModal').classList.add('hidden');
-        }
-
-        // Když uživatel vyfotí výkres, můžeme fotku např. nechat zapsat do názvu nebo jen informativně
-        function handlePhotoCapture(event) {
-            if (event.target.files && event.target.files[0]) {
-                // Uživatel pořídil fotku výkresu
-                document.getElementById('inputIsoName').placeholder = "Výkres úspěšně vyfocen (zadejte název)";
-            }
-        }
-
-        function saveIsoEntry() {
-            const isoName = document.getElementById('inputIsoName').value.trim();
-
-            if (!isoName) {
-                alert('Zadejte prosím název izometrie.');
-                return;
-            }
-
-            let existing = db.find(item => item.isoName === isoName);
-            if (!existing) {
-                db.unshift({
-                    id: Date.now().toString(),
-                    isoName: isoName,
-                    welds: []
-                });
-            }
-
-            saveData();
-            closeIsoModal();
-        }
-
-        // --- SPRÁVA SVARŮ ---
-        function openWeldsModal(isoId) {
-            currentIsoId = isoId;
-            const iso = db.find(i => i.id === isoId);
-            document.getElementById('weldsModalSub').innerText = `ISO: ${iso.isoName}`;
-            document.getElementById('inputWeldsRange').value = '1-10';
-            document.getElementById('weldsModal').classList.remove('hidden');
-        }
-
-        function closeWeldsModal() {
-            document.getElementById('weldsModal').classList.add('hidden');
-            currentIsoId = null;
-        }
-
-        function confirmAddWelds() {
-            const rangeStr = document.getElementById('inputWeldsRange').value.trim();
-            const iso = db.find(i => i.id === currentIsoId);
-            if (!iso) return;
-
-            let weldNumbers = parseRangeString(rangeStr);
-            weldNumbers.forEach(num => {
-                let weldName = `W${num < 10 ? '0' + num : num}`;
-                if (!iso.welds.find(w => w.name === weldName)) {
-                    iso.welds.push({
-                        id: Date.now() + Math.random(),
-                        name: weldName,
-                        status: 'OK',
-                        method: 'H',
-                        photoNo: ''
-                    });
-                }
-            });
-
-            iso.welds.sort((a,b) => {
-                let numA = parseInt(a.name.replace(/\D/g,'')) || 0;
-                let numB = parseInt(b.name.replace(/\D/g,'')) || 0;
-                return numA - numB;
-            });
-
-            saveData();
-            closeWeldsModal();
-        }
-
-        function parseRangeString(str) {
-            let result = new Set();
-            let parts = str.split(',');
-            parts.forEach(part => {
-                part = part.trim();
-                if (part.includes('-')) {
-                    let [start, end] = part.split('-').map(n => parseInt(n.trim()));
-                    if (!isNaN(start) && !isNaN(end)) {
-                        for (let i = Math.min(start, end); i <= Math.max(start, end); i++) {
-                            result.add(i);
-                        }
-                    }
-                } else {
-                    let num = parseInt(part);
-                    if (!isNaN(num)) result.add(num);
-                }
-            });
-            return Array.from(result);
-        }
-
-        function addSingleWeld(isoId) {
-            const iso = db.find(i => i.id === isoId);
-            let nextNum = iso.welds.length + 1;
-            let weldName = `W${nextNum < 10 ? '0' + nextNum : nextNum}`;
-            iso.welds.push({
-                id: Date.now(),
-                name: weldName,
-                status: 'OK',
-                method: 'H',
-                photoNo: ''
-            });
-            saveData();
-        }
-
-        function deleteWeld(isoId, weldId) {
-            const iso = db.find(i => i.id === isoId);
-            iso.welds = iso.welds.filter(w => w.id !== weldId);
-            saveData();
-        }
-
-        function deleteIso(isoId) {
-            if (confirm('Opravdu chcete smazat celou izometrii se všemi svary?')) {
-                db = db.filter(i => i.id !== isoId);
-                saveData();
-            }
-        }
-
-        function updateWeld(isoId, weldId, field, value) {
-            const iso = db.find(i => i.id === isoId);
-            const weld = iso.welds.find(w => w.id === weldId);
-            if (weld) {
-                weld[field] = value;
-                if (field === 'method') {
-                    if (!weld.photoNo.startsWith('F-') && !weld.photoNo.startsWith('H-')) {
-                        weld.photoNo = value + '-' + weld.photoNo;
-                    } else {
-                        weld.photoNo = value + '-' + weld.photoNo.substring(2);
-                    }
-                }
-                saveData();
-            }
-        }
-
-        // --- VYKRESLENÍ APLIKACE ---
-        function renderApp() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const listEl = document.getElementById('isoList');
-            listEl.innerHTML = '';
-
-            let filtered = db.filter(iso => {
-                if (iso.isoName.toLowerCase().includes(query)) return true;
-                return iso.welds.some(w => w.name.toLowerCase().includes(query) || w.photoNo.toLowerCase().includes(query));
-            });
-
-            if (filtered.length === 0) {
-                listEl.innerHTML = `
-                    <div class="text-center py-12 bg-slate-800/50 rounded-2xl border border-slate-800">
-                        <p class="text-slate-400 text-sm">Zatím žádná izometrie v evidenci.</p>
-                        <p class="text-xs text-slate-500 mt-1">Klikněte nahoře na + Přidat novou izometrii.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            filtered.forEach(iso => {
-                let card = document.createElement('div');
-                card.className = "bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-md space-y-3";
-                
-                let weldsHtml = '';
-                iso.welds.forEach(w => {
-                    weldsHtml += `
-                        <div class="bg-slate-900/70 border border-slate-700/60 rounded-xl p-3 space-y-2">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-sm text-blue-300">${w.name}</span>
-                                <div class="flex items-center gap-1.5">
-                                    <!-- OK / NOK -->
-                                    <button onclick="updateWeld('${iso.id}', ${w.id}, 'status', '${w.status === 'OK' ? 'NOK' : 'OK'}')" 
-                                        class="px-2.5 py-1 rounded-lg text-xs font-bold ${w.status === 'OK' ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/40' : 'bg-rose-600/30 text-rose-400 border border-rose-500/40'}">
-                                        ${w.status}
-                                    </button>
-                                    <!-- F / H -->
-                                    <button onclick="updateWeld('${iso.id}', ${w.id}, 'method', '${w.method === 'F' ? 'H' : 'F'}')" 
-                                        class="px-2.5 py-1 rounded-lg text-xs font-semibold ${w.method === 'F' ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40' : 'bg-amber-600/30 text-amber-300 border border-amber-500/40'}" title="F = Automat, H = Ruka">
-                                        ${w.method === 'F' ? 'F (Auto)' : 'H (Ruka)'}
-                                    </button>
-                                    <button onclick="deleteWeld('${iso.id}', ${w.id})" class="text-slate-500 hover:text-rose-400 p-1">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                    </button>
-                                </div>
-                            </div>
-                            <!-- Číslo fotky -->
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs text-slate-400 font-medium">FOTO:</span>
-                                <input type="text" value="${w.photoNo}" onchange="updateWeld('${iso.id}', ${w.id}, 'photoNo', this.value)" placeholder="např. 142 nebo F-042" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-blue-500 font-mono">
-                            </div>
-                        </div>
-                    `;
-                });
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-start gap-2 border-b border-slate-700 pb-3">
-                        <div>
-                            <h2 class="font-bold text-base text-slate-100">${iso.isoName}</h2>
-                        </div>
-                        <button onclick="deleteIso('${iso.id}')" class="text-slate-500 hover:text-rose-400 p-1">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                        </button>
-                    </div>
-
-                    <div class="space-y-2">
-                        ${weldsHtml.length > 0 ? weldsHtml : '<p class="text-xs text-slate-500 italic">Zatím žádné svary. Přidejte rozsah nebo jednotlivé svary.</p>'}
-                    </div>
-
-                    <div class="pt-2 flex gap-2">
-                        <button onclick="openWeldsModal('${iso.id}')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs font-semibold py-2 px-3 rounded-xl border border-slate-600 text-center">
-                            + Přidat rozsah (1-10)
-                        </button>
-                        <button onclick="addSingleWeld('${iso.id}')" class="bg-slate-700 hover:bg-slate-600 text-xs font-semibold py-2 px-3 rounded-xl border border-slate-600">
-                            + Svar
-                        </button>
-                    </div>
-                `;
-                listEl.appendChild(card);
-            });
-        }
-
-        // --- EXPORT / IMPORT ---
-        function exportJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({db}, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `vt2_evidence_${new Date().toISOString().slice(0,10)}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
-
-        function importJSON(event) {
-            const fileReader = new FileReader();
-            if (event.target.files[0]) {
-                fileReader.readAsText(event.target.files[0], "UTF-8");
-                fileReader.onload = (e) => {
-                    try {
-                        const parsed = JSON.parse(e.target.result);
-                        if (parsed.db) {
-                            db = parsed.db;
-                            saveData();
-                            alert('Data byla úspěšně obnovena!');
-                        }
-                    } catch (err) {
-                        alert('Chyba při čtení souboru.');
-                    }
-                };
-            }
-        }
-
-        renderApp();
-    </script>
+if(location.protocol==='https:'&&'serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+render();
+</script>
 </body>
 </html>
