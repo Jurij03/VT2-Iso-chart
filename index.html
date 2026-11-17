@@ -11,6 +11,12 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
+.typechip{background:#34344a;color:#9a9ab0;border:none;border-radius:9px;padding:7px 16px;font-size:15px;font-weight:800}
+.typechip.on{background:#8f7bff;color:#fff}
+.oknok{display:flex;gap:8px;margin-top:10px}
+.oknok button{flex:1;padding:12px;border-radius:11px;border:none;font-size:16px;font-weight:700;color:#fff}
+.oknok .ok{background:#22a06b}.oknok .nok{background:#d63a3a}
+.chip.foto{background:#2a2a3c;color:#8f7bff;cursor:pointer}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{font-family:-apple-system,sans-serif;background:#14141c;color:#ececf1;
@@ -213,17 +219,86 @@ function renderAdd(){
     records.unshift(rec);save();go({v:'detail',id:rec.id});
   };
 }
-
 function renderDetail(id){
   const rec=records.find(r=>r.id===id);
   if(!rec)return go({v:'home'});
+  const done=rec.welds.filter(w=>w.status!=='pend').length;
   app.innerHTML='<div class="top"><button class="back" id="bk">‹</button><h1>'+esc(rec.name)+'</h1></div>'
-    +rec.welds.map(w=>'<div class="card list-item" data-w="'+w.n+'"><div class="row"><b>Svar '+w.n+'</b>'
-      +'<span class="badge">'+w.type+'</span>'+statusChip(w)+'</div></div>').join('')
-    +'<button class="btn sec" id="csv" style="margin-top:14px">⬇ Export CSV (všechny kontroly)</button>';
+    +'<p class="muted" id="prog">'+done+'/'+rec.welds.length+' zkontrolováno · tlačítkem F/H přepneš typ, ťuknutím na 📸 pojmenuješ foto</p>'
+    +rec.welds.map(weldRowHTML).join('')
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+    +'<button class="btn sec" id="allok" style="margin:0">✓ Všechny OK</button>'
+    +'<button class="btn sec" id="csv" style="margin:0">⬇ CSV</button></div>';
   document.getElementById('bk').onclick=()=>go({v:'home'});
-  app.querySelectorAll('[data-w]').forEach(el=>el.onclick=()=>go({v:'weld',id:id,num:+el.dataset.w}));
+  rec.welds.forEach(w=>bindRow(rec,w));
+  document.getElementById('allok').onclick=()=>{
+    if(confirm('Označit všechny svary tohoto výkresu jako OK?')){
+      rec.welds.forEach(w=>w.status='ok');save();renderDetail(id);
+    }
+  };
   document.getElementById('csv').onclick=exportCSV;
+}
+
+function weldRowHTML(w){
+  return '<div class="card" data-row="'+w.n+'">'
+    +'<div class="row"><b>Svar '+w.n+'</b>'
+    +'<span style="display:flex;gap:8px;align-items:center">'
+    +'<button class="typechip on" data-toggle="'+w.n+'">'+w.type+'</button>'
+    +'<span class="chip foto" data-lbl="'+w.n+'">'+(w.label?'📸 '+esc(w.label):'📸 Foto')+'</span>'
+    +'</span></div>'
+    +'<div class="oknok">'
+    +'<button class="ok'+(w.status==='ok'?'':' dim')+'" data-ok="'+w.n+'">OK</button>'
+    +'<button class="nok'+(w.status==='nok'?'':' dim')+'" data-nok="'+w.n+'">NOK</button>'
+    +'</div></div>';
+}
+
+function bindRow(rec,w){
+  const el=app.querySelector('[data-row="'+w.n+'"]');
+  if(!el)return;
+  el.querySelector('[data-toggle]').onclick=()=>{w.type=w.type==='F'?'H':'F';save();refreshRow(rec,w)};
+  el.querySelector('[data-ok]').onclick=()=>{w.status=w.status==='ok'?'pend':'ok';save();refreshRow(rec,w)};
+  el.querySelector('[data-nok]').onclick=()=>{w.status=w.status==='nok'?'pend':'nok';save();refreshRow(rec,w)};
+  el.querySelector('[data-lbl]').onclick=()=>editLabel(rec,w);
+}
+
+function refreshRow(rec,w){
+  app.querySelector('[data-row="'+w.n+'"]').outerHTML=weldRowHTML(w);
+  bindRow(rec,w);
+  document.getElementById('prog').textContent=
+    rec.welds.filter(x=>x.status!=='pend').length+'/'+rec.welds.length+' zkontrolováno · tlačítkem F/H přepneš typ, ťuknutím na 📸 pojmenuješ foto';
+function editLabel(rec,w){
+  const m=(w.label||'').match(/^([FH]?)(\d*)$/);
+  let prefix=(m&&m[1])||w.type||'H';
+  let num=(m&&m[2])||'';
+
+  const ov=document.createElement('div');ov.className='overlay';
+  const sheet=document.createElement('div');sheet.className='sheet';
+  sheet.innerHTML='<div class="row"><b>Foto · Svar '+w.n+'</b>'
+    +'<button class="btn sec" style="width:auto;margin:0" id="lbClose">✕</button></div>'
+    +'<p class="muted">Název fotky z endoskopu – vyber prefix a zadej číslo.</p>'
+    +'<div class="seg" id="lp"><button data-p="F">F</button><button data-p="H">H</button></div>'
+    +'<input type="text" id="lnum" inputmode="numeric" placeholder="2360" value="'+esc(num)+'">'
+    +'<button class="btn" id="lbSave" style="margin-top:14px">✓ Uložit</button>'
+    +(w.label?'<button class="btn sec" id="lbDel" style="color:#ff7a7a">🗑 Smazat název fotky</button>':'');
+  ov.appendChild(sheet);document.body.appendChild(ov);
+  ov.onclick=e=>{if(e.target===ov)ov.remove()};
+  sheet.querySelector('#lbClose').onclick=()=>ov.remove();
+
+  const seg=sheet.querySelectorAll('#lp button');
+  const paint=()=>seg.forEach(b=>b.classList.toggle('on',b.dataset.p===prefix));
+  paint();
+  seg.forEach(b=>b.onclick=()=>{prefix=b.dataset.p;paint()});
+  const input=sheet.querySelector('#lnum');
+  input.focus();
+
+  sheet.querySelector('#lbSave').onclick=()=>{
+    const digits=input.value.replace(/\D/g,'');
+    w.label=digits?prefix+digits:null;
+    save();ov.remove();refreshRow(rec,w);
+  };
+  const del=sheet.querySelector('#lbDel');
+  if(del)del.onclick=()=>{w.label=null;save();ov.remove();refreshRow(rec,w)};
+}
 }
 
 function renderWeld(id,num){
@@ -270,13 +345,15 @@ function renderWeld(id,num){
 }
 
 function exportCSV(){
-  const rows=[['ISO','Svar','Typ','Vysledek']];
-  records.forEach(r=>r.welds.forEach(w=>rows.push([r.name,w.n,w.type,{ok:'OK',nok:'NOK',pend:''}[w.status]])));
+  const rows=[['ISO','Svar','Typ','Vysledek','Foto']];
+  records.forEach(r=>r.welds.forEach(w=>rows.push([r.name,w.n,w.type,
+    {ok:'OK',nok:'NOK',pend:''}[w.status],w.label||''])));
   const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download='iso_kontroly_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
+}
 }
 
 if(location.protocol==='https:'&&'serviceWorker' in navigator){
