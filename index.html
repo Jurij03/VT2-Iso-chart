@@ -52,12 +52,25 @@
     <!-- MODAL: Přidání ISO -->
     <div id="isoModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col justify-end sm:justify-center p-0 sm:p-4">
         <div class="bg-slate-800 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-slate-700 p-4 space-y-4">
-            <h3 class="font-bold text-base text-slate-100">Nová izometrie</h3>
+            <h3 class="font-bold base text-slate-100">Nová izometrie</h3>
             
-            <div>
-                <label class="block text-xs text-slate-400 mb-1 font-semibold text-blue-400">Název / Číslo ISO:</label>
-                <p class="text-[11px] text-slate-400 mb-2">Tip na iPhonu: Klikni do políčka a zvol ikonu skenování textu (rámeček s čárkami) pro okamžité přečtení z výkresu.</p>
-                <input type="text" id="inputIsoName" placeholder="např. GSB-45-060-287-0,75-K153" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500 font-medium">
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1 font-semibold text-blue-400">Název / Číslo ISO:</label>
+                    <input type="text" id="inputIsoName" placeholder="např. GSB-45-060-287-0,75-K153" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500 font-medium">
+                </div>
+
+                <!-- Rychlé tlačítko pro otevření foťáku / galerii -->
+                <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-300">Vyfotit výkres / razítko</p>
+                        <p class="text-[11px] text-slate-400">Otevře foťák pro přehled.</p>
+                    </div>
+                    <label class="bg-slate-700 hover:bg-slate-600 text-xs text-white font-medium px-3 py-2 rounded-lg cursor-pointer flex items-center gap-1.5 border border-slate-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        Foťák <input type="file" accept="image/*" capture="environment" onchange="handlePhotoCapture(event)" class="hidden">
+                    </label>
+                </div>
             </div>
 
             <div class="flex gap-2 pt-2">
@@ -94,17 +107,21 @@
             renderApp();
         }
 
-        // --- SPRÁVA MODALŮ ---
         function openNewIsoModal() {
             document.getElementById('isoModal').classList.remove('hidden');
             document.getElementById('inputIsoName').value = '';
-            setTimeout(() => {
-                document.getElementById('inputIsoName').focus();
-            }, 100);
         }
 
         function closeIsoModal() {
             document.getElementById('isoModal').classList.add('hidden');
+        }
+
+        // Když uživatel vyfotí výkres, můžeme fotku např. nechat zapsat do názvu nebo jen informativně
+        function handlePhotoCapture(event) {
+            if (event.target.files && event.target.files[0]) {
+                // Uživatel pořídil fotku výkresu
+                document.getElementById('inputIsoName').placeholder = "Výkres úspěšně vyfocen (zadejte název)";
+            }
         }
 
         function saveIsoEntry() {
@@ -257,4 +274,97 @@
 
             filtered.forEach(iso => {
                 let card = document.createElement('div');
-                card.className = "bg-slate-800 border
+                card.className = "bg-slate-800 border border-slate-700 rounded-2xl p-4 shadow-md space-y-3";
+                
+                let weldsHtml = '';
+                iso.welds.forEach(w => {
+                    weldsHtml += `
+                        <div class="bg-slate-900/70 border border-slate-700/60 rounded-xl p-3 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="font-bold text-sm text-blue-300">${w.name}</span>
+                                <div class="flex items-center gap-1.5">
+                                    <!-- OK / NOK -->
+                                    <button onclick="updateWeld('${iso.id}', ${w.id}, 'status', '${w.status === 'OK' ? 'NOK' : 'OK'}')" 
+                                        class="px-2.5 py-1 rounded-lg text-xs font-bold ${w.status === 'OK' ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/40' : 'bg-rose-600/30 text-rose-400 border border-rose-500/40'}">
+                                        ${w.status}
+                                    </button>
+                                    <!-- F / H -->
+                                    <button onclick="updateWeld('${iso.id}', ${w.id}, 'method', '${w.method === 'F' ? 'H' : 'F'}')" 
+                                        class="px-2.5 py-1 rounded-lg text-xs font-semibold ${w.method === 'F' ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40' : 'bg-amber-600/30 text-amber-300 border border-amber-500/40'}" title="F = Automat, H = Ruka">
+                                        ${w.method === 'F' ? 'F (Auto)' : 'H (Ruka)'}
+                                    </button>
+                                    <button onclick="deleteWeld('${iso.id}', ${w.id})" class="text-slate-500 hover:text-rose-400 p-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Číslo fotky -->
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400 font-medium">FOTO:</span>
+                                <input type="text" value="${w.photoNo}" onchange="updateWeld('${iso.id}', ${w.id}, 'photoNo', this.value)" placeholder="např. 142 nebo F-042" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none focus:border-blue-500 font-mono">
+                            </div>
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2 border-b border-slate-700 pb-3">
+                        <div>
+                            <h2 class="font-bold text-base text-slate-100">${iso.isoName}</h2>
+                        </div>
+                        <button onclick="deleteIso('${iso.id}')" class="text-slate-500 hover:text-rose-400 p-1">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="space-y-2">
+                        ${weldsHtml.length > 0 ? weldsHtml : '<p class="text-xs text-slate-500 italic">Zatím žádné svary. Přidejte rozsah nebo jednotlivé svary.</p>'}
+                    </div>
+
+                    <div class="pt-2 flex gap-2">
+                        <button onclick="openWeldsModal('${iso.id}')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs font-semibold py-2 px-3 rounded-xl border border-slate-600 text-center">
+                            + Přidat rozsah (1-10)
+                        </button>
+                        <button onclick="addSingleWeld('${iso.id}')" class="bg-slate-700 hover:bg-slate-600 text-xs font-semibold py-2 px-3 rounded-xl border border-slate-600">
+                            + Svar
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+
+        // --- EXPORT / IMPORT ---
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({db}, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `vt2_evidence_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importJSON(event) {
+            const fileReader = new FileReader();
+            if (event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0], "UTF-8");
+                fileReader.onload = (e) => {
+                    try {
+                        const parsed = JSON.parse(e.target.result);
+                        if (parsed.db) {
+                            db = parsed.db;
+                            saveData();
+                            alert('Data byla úspěšně obnovena!');
+                        }
+                    } catch (err) {
+                        alert('Chyba při čtení souboru.');
+                    }
+                };
+            }
+        }
+
+        renderApp();
+    </script>
+</body>
+</html>
