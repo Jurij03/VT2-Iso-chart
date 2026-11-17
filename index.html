@@ -36,7 +36,6 @@ label.fld{display:block;font-size:13px;color:#9a9ab0;margin-top:12px}
  border-radius:50%;background:#8f7bff;color:#fff;font-size:32px;border:none;box-shadow:0 4px 18px rgba(0,0,0,.5)}
 .muted{color:#9a9ab0;font-size:13px}
 .typechip{background:#34344a;color:#9a9ab0;border:none;border-radius:9px;padding:7px 16px;font-size:15px;font-weight:800}
-.typechip.on{background:#8f7bff;color:#fff}
 .oknok{display:flex;gap:8px;margin-top:10px}
 .oknok button{flex:1;padding:12px;border-radius:11px;border:none;font-size:16px;font-weight:700;color:#fff}
 .oknok .ok{background:#22a06b}.oknok .nok{background:#d63a3a}
@@ -83,7 +82,7 @@ function showLoader(t){loaderEl=document.createElement('div');loaderEl.className
 function setLoader(t){if(loaderEl)loaderEl.firstChild.textContent=t}
 function hideLoader(){if(loaderEl)loaderEl.remove();loaderEl=null}
 
-/* ================= OCR (rozpoznání názvu výkresu) ================= */
+/* ================= OCR: knihovna se predtachuje raz a dobre ================= */
 let tessPromise=null;
 function ensureTesseract(){
   if(window.Tesseract)return Promise.resolve();
@@ -98,8 +97,24 @@ function ensureTesseract(){
   }
   return tessPromise;
 }
+
+/* ================= foto → JPEG (zmenšení) ================= */
+function fileToJPEG(file,maxDim,q){return new Promise((res,rej)=>{
+  const img=new Image();
+  img.onload=()=>{
+    const s=Math.min(1,maxDim/Math.max(img.width,img.height));
+    const c=document.createElement('canvas');
+    c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(img.src);
+    res(c.toDataURL('image/jpeg',q));
+  };
+  img.onerror=()=>rej(new Error('Obrázek nelze přečíst.'));
+  img.src=URL.createObjectURL(file);
 })}
 function capture(cb){const i=document.createElement('input');i.type='file';i.accept='image/*';i.capture='environment';i.onchange=()=>i.files[0]&&cb(i.files[0]);i.click()}
+
+/* ================= sken názvu výkresu ================= */
 function scanInto(setName){
   capture(async f=>{
     showLoader('Připravuji fotku…');
@@ -112,7 +127,7 @@ function scanInto(setName){
       }});
       const lines=(r.data.text||'').split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=2);
       hideLoader();
-      if(!lines.length&&!r.data.text.trim()){
+      if(!lines.length){
         alert('Nic nerozpoznáno.\nTip: foť jen roh výkresu s rámečkem, dobře osvětlený, bez odlesku.');
         return;
       }
@@ -126,8 +141,7 @@ function pickLine(lines,imgUrl,setName){
   sheet.innerHTML='<div class="row"><b>Vyber řádek s názvem</b>'
     +'<button class="btn sec" style="width:auto;margin:0" id="plClose">✕</button></div>'
     +'<img style="width:100%;border-radius:10px;margin-top:8px" src="'+imgUrl+'">'
-    +(lines.length?'<p class="muted">Klepnutím na rozpoznaný řádek ho použiješ jako název ISO:</p>'
-                  :'<p class="muted">Text nenalezen – zkus lepší světlo, menší vzdálenost, nebo zadej název ručně.</p>');
+    +'<p class="muted">Klepnutím na rozpoznaný řádek ho použiješ jako název ISO:</p>';
   lines.slice(0,12).forEach(l=>{
     const b=document.createElement('button');b.className='line-opt';b.textContent=l;
     b.onclick=()=>{setName(l);ov.remove()};sheet.appendChild(b);
@@ -137,7 +151,7 @@ function pickLine(lines,imgUrl,setName){
   sheet.querySelector('#plClose').onclick=()=>ov.remove();
 }
 
-/* ================= obrazovky ================= */
+/* ================= směrovač obrazovek ================= */
 const app=document.getElementById('app');
 let route={v:'home'};
 function go(v){route=v;render()}
@@ -147,11 +161,6 @@ function render(){
   else if(r.v==='add')renderAdd();
   else if(r.v==='detail')renderDetail(r.id);
   window.scrollTo(0,0);
-}
-function statusChip(w){
-  return w.status==='ok'?'<span class="chip ok">OK</span>'
-       :w.status==='nok'?'<span class="chip nok">NOK</span>'
-       :'<span class="chip pend">—</span>';
 }
 
 /* ---------- domů ---------- */
@@ -175,7 +184,9 @@ function renderHome(){
   app.querySelectorAll('[data-del]').forEach(el=>el.onclick=e=>{e.stopPropagation();delRec(el.dataset.del)});
 }
 function delRec(id){
-  if(!confirm('Smazat celou kontrolu '+(records.find(r=>r.id===id)||{}).name+'?'))return;
+  const rec=records.find(r=>r.id===id);
+  if(!rec)return;
+  if(!confirm('Smazat celou kontrolu '+rec.name+'?'))return;
   records=records.filter(r=>r.id!==id);save();render();
 }
 
@@ -241,15 +252,15 @@ function refreshProg(rec){
 }
 
 function weldRowHTML(w){
+  const chipCls={ok:'ok',nok:'nok',pend:'pend'}[w.status];
+  const chipTxt={ok:'OK',nok:'NOK',pend:'—'}[w.status];
   return '<div class="card" data-row="'+w.n+'">'
     +'<div class="row"><b>Svar '+w.n+'</b>'
-    +'<span style="display:flex;gap:8px;align-items:center">'
-    +'<span class="chip '+({ok:'ok',nok:'nok',pend:'pend'})[w.status]+'">'+({ok:'OK',nok:'NOK',pend:'—'})[w.status]+'</span>'
-    +'</span></div>'
+    +'<span class="chip '+chipCls+'">'+chipTxt+'</span></div>'
     +'<div class="row" style="margin-top:10px">'
     +'<button class="typechip" data-toggle="'+w.n+'">'+w.type+'</button>'
     +'<span class="chip foto" data-lbl="'+w.n+'">'+(w.label?'📸 '+esc(w.label):'📸 Foto')+'</span>'
-    +'</span></div>'
+    +'</div>'
     +'<div class="oknok">'
     +'<button class="ok'+(w.status==='ok'?'':' dim')+'" data-ok="'+w.n+'">OK</button>'
     +'<button class="nok'+(w.status==='nok'?'':' dim')+'" data-nok="'+w.n+'">NOK</button>'
@@ -266,12 +277,13 @@ function bindRow(rec,w){
 }
 
 function refreshRow(rec,w){
-  app.querySelector('[data-row="'+w.n+'"]').outerHTML=weldRowHTML(w);
+  const el=app.querySelector('[data-row="'+w.n+'"]');
+  if(el)el.outerHTML=weldRowHTML(w);
   bindRow(rec,w);
   refreshProg(rec);
 }
 
-/* ---------- název fotky z endoskopu ---------- */
+/* ---------- název fotky z endoskopu (F2360 / H2360) ---------- */
 function editLabel(rec,w){
   const m=(w.label||'').match(/^([FH]?)(\d*)$/);
   let prefix=(m&&m[1])||w.type||'H';
@@ -323,6 +335,7 @@ if(location.protocol==='https:'&&'serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 render();
+if(navigator.onLine)ensureTesseract().catch(()=>{});
 </script>
 </body>
 </html>
