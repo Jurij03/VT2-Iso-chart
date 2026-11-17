@@ -84,37 +84,38 @@ function setLoader(t){if(loaderEl)loaderEl.firstChild.textContent=t}
 function hideLoader(){if(loaderEl)loaderEl.remove();loaderEl=null}
 
 /* ================= OCR (rozpoznání názvu výkresu) ================= */
-function ensureTesseract(){return new Promise((res,rej)=>{
-  if(window.Tesseract)return res();
-  const s=document.createElement('script');
-  s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-  s.onload=res;s.onerror=()=>rej(new Error('OCR se nepovedlo stáhnout – jsi online?'));
-  document.head.appendChild(s)})}
-function fileToJPEG(file,maxDim,q){return new Promise((res,rej)=>{
-  const img=new Image();
-  img.onload=()=>{
-    const s=Math.min(1,maxDim/Math.max(img.width,img.height));
-    const c=document.createElement('canvas');
-    c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);
-    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-    URL.revokeObjectURL(img.src);
-    res(c.toDataURL('image/jpeg',q));
-  };
-  img.onerror=()=>rej(new Error('Obrázek nelze přečíst.'));
-  img.src=URL.createObjectURL(file);
+let tessPromise=null;
+function ensureTesseract(){
+  if(window.Tesseract)return Promise.resolve();
+  if(!tessPromise){
+    tessPromise=new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload=()=>window.Tesseract?res():rej(new Error('OCR knihovna se nenačetla.'));
+      s.onerror=()=>{tessPromise=null;rej(new Error('OCR se nepovedlo stáhnout – jsi online?'))};
+      document.head.appendChild(s);
+    });
+  }
+  return tessPromise;
+}
 })}
 function capture(cb){const i=document.createElement('input');i.type='file';i.accept='image/*';i.capture='environment';i.onchange=()=>i.files[0]&&cb(i.files[0]);i.click()}
 function scanInto(setName){
   capture(async f=>{
-    showLoader('Připravuji OCR…');
+    showLoader('Připravuji fotku…');
     try{
       await ensureTesseract();
-      const url=await fileToJPEG(f,1700,.8);
+      setLoader('Startuji OCR…');
+      const url=await fileToJPEG(f,1400,.8);
       const r=await Tesseract.recognize(url,'eng',{logger:m=>{
-        if(m.status==='recognizing text')setLoader('Čtu text… '+Math.round(m.progress*100)+'%');
+        if(m.status==='recognizing text')setLoader('Čtu text… '+Math.round(m.progress*100)+' %');
       }});
-      const lines=r.data.text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=2);
+      const lines=(r.data.text||'').split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>=2);
       hideLoader();
+      if(!lines.length&&!r.data.text.trim()){
+        alert('Nic nerozpoznáno.\nTip: foť jen roh výkresu s rámečkem, dobře osvětlený, bez odlesku.');
+        return;
+      }
       pickLine(lines,url,setName);
     }catch(e){hideLoader();alert('Sken selhal: '+e.message+'\nZadej název ručně.')}
   });
