@@ -11,12 +11,6 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-.typechip{background:#34344a;color:#9a9ab0;border:none;border-radius:9px;padding:7px 16px;font-size:15px;font-weight:800}
-.typechip.on{background:#8f7bff;color:#fff}
-.oknok{display:flex;gap:8px;margin-top:10px}
-.oknok button{flex:1;padding:12px;border-radius:11px;border:none;font-size:16px;font-weight:700;color:#fff}
-.oknok .ok{background:#22a06b}.oknok .nok{background:#d63a3a}
-.chip.foto{background:#2a2a3c;color:#8f7bff;cursor:pointer}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{font-family:-apple-system,sans-serif;background:#14141c;color:#ececf1;
@@ -28,39 +22,43 @@ body{font-family:-apple-system,sans-serif;background:#14141c;color:#ececf1;
 .btn{display:block;width:100%;border:none;border-radius:12px;padding:13px;font-size:16px;font-weight:600;
  background:#8f7bff;color:#fff;cursor:pointer;margin-top:8px}
 .btn.sec{background:#2a2a3a;color:#ececf1}
-.btn.ok{background:#22a06b}.btn.nok{background:#d63a3a}
 .btn.dim{opacity:.35}
 input[type=text]{width:100%;background:#252533;border:1px solid #34344a;border-radius:10px;
  color:#ececf1;padding:12px;font-size:16px;margin-top:6px}
 label.fld{display:block;font-size:13px;color:#9a9ab0;margin-top:12px}
 .card{background:#1e1e2a;border:1px solid #2a2a3c;border-radius:14px;padding:14px;margin-bottom:10px}
 .row{display:flex;align-items:center;gap:10px;justify-content:space-between}
-.list-item{cursor:pointer}
-.badge{font-weight:700;font-size:13px;background:#34344a;border-radius:8px;padding:3px 9px}
 .chip{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px}
 .chip.ok{background:#134e35;color:#3dd68c}.chip.nok{background:#5a1d1d;color:#ff7a7a}
 .chip.pend{background:#33333f;color:#9a9ab0}
+.chip.foto{background:#2a2a3c;color:#8f7bff}
 .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom));width:58px;height:58px;
  border-radius:50%;background:#8f7bff;color:#fff;font-size:32px;border:none;box-shadow:0 4px 18px rgba(0,0,0,.5)}
-.photo{width:100%;border-radius:10px;margin-top:8px}
-.seg{display:flex;gap:8px;margin-top:6px}
-.seg button{flex:1;padding:11px;border-radius:10px;border:1px solid #34344a;background:#252533;color:#9a9ab0;font-size:15px;font-weight:600}
-.seg button.on{background:#8f7bff;color:#fff;border-color:#8f7bff}
+.muted{color:#9a9ab0;font-size:13px}
+.typechip{background:#34344a;color:#9a9ab0;border:none;border-radius:9px;padding:7px 16px;font-size:15px;font-weight:800}
+.typechip.on{background:#8f7bff;color:#fff}
+.oknok{display:flex;gap:8px;margin-top:10px}
+.oknok button{flex:1;padding:12px;border-radius:11px;border:none;font-size:16px;font-weight:700;color:#fff}
+.oknok .ok{background:#22a06b}.oknok .nok{background:#d63a3a}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:flex-end;z-index:50}
 .sheet{background:#1e1e2a;border-radius:18px 18px 0 0;width:100%;max-height:85vh;overflow:auto;
  padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
-.muted{color:#9a9ab0;font-size:13px}
+.seg{display:flex;gap:8px;margin-top:6px}
+.seg button{flex:1;padding:11px;border-radius:10px;border:1px solid #34344a;background:#252533;color:#9a9ab0;font-size:15px;font-weight:600}
+.seg button.on{background:#8f7bff;color:#fff;border-color:#8f7bff}
 .line-opt{display:block;width:100%;text-align:left;background:#252533;border:none;border-radius:10px;color:#ececf1;padding:12px;margin-top:6px;font-size:15px}
 .empty{text-align:center;color:#9a9ab0;padding:60px 20px}
 .delete{background:none;border:none;color:#ff7a7a;font-size:22px;padding:4px 8px}
 .loader{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:99}
 .loader div{background:#1e1e2a;border-radius:14px;padding:20px 26px;font-size:15px}
+.err{background:#fff;color:#c00;padding:16px;font-size:12px;white-space:pre-wrap;z-index:9999;position:relative}
 </style>
 </head>
 <body>
+<script>window.onerror=function(m,s,l,c){document.body.innerHTML='<pre class="err">CHYBA: '+m+'\nŘádek: '+l+':'+c+'</pre>'};</script>
 <div id="app" class="wrap"></div>
 <script>
-/* ---------- data ---------- */
+/* ================= data ================= */
 const LS='iso_records_v1';
 let records;
 try{records=JSON.parse(localStorage.getItem(LS)||'[]')}catch(e){records=[]}
@@ -79,15 +77,19 @@ function parseRange(str){
   return [...out].sort((a,b)=>a-b);
 }
 
-/* ---------- fotky: IndexedDB ---------- */
-function photoDB(){return new Promise((res,rej)=>{const r=indexedDB.open('iso_photos',1);
-  r.onupgradeneeded=()=>r.result.createObjectStore('photos');
-  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
-const photoPut=(id,data)=>photoDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').put(data,id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)}));
-const photoGet=id=>photoDB().then(db=>new Promise((res,rej)=>{const rq=db.transaction('photos').objectStore('photos').get(id);rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error)}));
-const photoDel=id=>photoDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('photos','readwrite');tx.objectStore('photos').delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)}));
+/* ================= loader ================= */
+let loaderEl=null;
+function showLoader(t){loaderEl=document.createElement('div');loaderEl.className='loader';loaderEl.innerHTML='<div>'+esc(t)+'</div>';document.body.appendChild(loaderEl)}
+function setLoader(t){if(loaderEl)loaderEl.firstChild.textContent=t}
+function hideLoader(){if(loaderEl)loaderEl.remove();loaderEl=null}
 
-/* soubor z kamery zmenši a převeď na JPEG */
+/* ================= OCR (rozpoznání názvu výkresu) ================= */
+function ensureTesseract(){return new Promise((res,rej)=>{
+  if(window.Tesseract)return res();
+  const s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+  s.onload=res;s.onerror=()=>rej(new Error('OCR se nepovedlo stáhnout – jsi online?'));
+  document.head.appendChild(s)})}
 function fileToJPEG(file,maxDim,q){return new Promise((res,rej)=>{
   const img=new Image();
   img.onload=()=>{
@@ -102,20 +104,6 @@ function fileToJPEG(file,maxDim,q){return new Promise((res,rej)=>{
   img.src=URL.createObjectURL(file);
 })}
 function capture(cb){const i=document.createElement('input');i.type='file';i.accept='image/*';i.capture='environment';i.onchange=()=>i.files[0]&&cb(i.files[0]);i.click()}
-
-/* ---------- loader ---------- */
-let loaderEl=null;
-function showLoader(t){loaderEl=document.createElement('div');loaderEl.className='loader';loaderEl.innerHTML='<div>'+esc(t)+'</div>';document.body.appendChild(loaderEl)}
-function setLoader(t){if(loaderEl)loaderEl.firstChild.textContent=t}
-function hideLoader(){if(loaderEl)loaderEl.remove();loaderEl=null}
-
-/* ---------- OCR (rozpoznání názvu z fotky výkresu) ---------- */
-function ensureTesseract(){return new Promise((res,rej)=>{
-  if(window.Tesseract)return res();
-  const s=document.createElement('script');
-  s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-  s.onload=res;s.onerror=()=>rej(new Error('OCR se nepovedlo stáhnout – jsi online?'));
-  document.head.appendChild(s)})}
 function scanInto(setName){
   capture(async f=>{
     showLoader('Připravuji OCR…');
@@ -134,8 +122,9 @@ function scanInto(setName){
 function pickLine(lines,imgUrl,setName){
   const ov=document.createElement('div');ov.className='overlay';
   const sheet=document.createElement('div');sheet.className='sheet';
-  sheet.innerHTML='<div class="row"><b>Vyber řádek s názvem</b><button class="btn sec" style="width:auto;margin:0" id="plClose">✕</button></div>'
-    +'<img class="photo" src="'+imgUrl+'">'
+  sheet.innerHTML='<div class="row"><b>Vyber řádek s názvem</b>'
+    +'<button class="btn sec" style="width:auto;margin:0" id="plClose">✕</button></div>'
+    +'<img style="width:100%;border-radius:10px;margin-top:8px" src="'+imgUrl+'">'
     +(lines.length?'<p class="muted">Klepnutím na rozpoznaný řádek ho použiješ jako název ISO:</p>'
                   :'<p class="muted">Text nenalezen – zkus lepší světlo, menší vzdálenost, nebo zadej název ručně.</p>');
   lines.slice(0,12).forEach(l=>{
@@ -147,7 +136,7 @@ function pickLine(lines,imgUrl,setName){
   sheet.querySelector('#plClose').onclick=()=>ov.remove();
 }
 
-/* ---------- obrazovky ---------- */
+/* ================= obrazovky ================= */
 const app=document.getElementById('app');
 let route={v:'home'};
 function go(v){route=v;render()}
@@ -156,11 +145,15 @@ function render(){
   if(r.v==='home')renderHome();
   else if(r.v==='add')renderAdd();
   else if(r.v==='detail')renderDetail(r.id);
-  else if(r.v==='weld')renderWeld(r.id,r.num);
   window.scrollTo(0,0);
 }
-function statusChip(w){return w.status==='ok'?'<span class="chip ok">OK</span>':w.status==='nok'?'<span class="chip nok">NOK</span>':'<span class="chip pend">—</span>'}
+function statusChip(w){
+  return w.status==='ok'?'<span class="chip ok">OK</span>'
+       :w.status==='nok'?'<span class="chip nok">NOK</span>'
+       :'<span class="chip pend">—</span>';
+}
 
+/* ---------- domů ---------- */
 function renderHome(){
   let h='<div class="top"><h1>ISO Kontroly</h1></div>';
   if(!records.length){
@@ -168,7 +161,7 @@ function renderHome(){
   }else{
     h+=records.map(rec=>{
       const done=rec.welds.filter(w=>w.status!=='pend').length;
-      return '<div class="card list-item" data-open="'+rec.id+'"><div class="row">'
+      return '<div class="card" style="cursor:pointer" data-open="'+rec.id+'"><div class="row">'
         +'<div><b>'+esc(rec.name)+'</b><div class="muted">'+rec.welds.length+' svarů · '
         +done+'/'+rec.welds.length+' zkontrolováno · '+new Date(rec.created).toLocaleDateString('cs')+'</div></div>'
         +'<button class="delete" data-del="'+rec.id+'">🗑</button></div></div>';
@@ -181,12 +174,11 @@ function renderHome(){
   app.querySelectorAll('[data-del]').forEach(el=>el.onclick=e=>{e.stopPropagation();delRec(el.dataset.del)});
 }
 function delRec(id){
-  if(!confirm('Smazat celou kontrolu včetně fotek?'))return;
-  const rec=records.find(r=>r.id===id);
-  if(rec)rec.welds.forEach(w=>w.photo&&photoDel(w.photo));
+  if(!confirm('Smazat celou kontrolu '+(records.find(r=>r.id===id)||{}).name+'?'))return;
   records=records.filter(r=>r.id!==id);save();render();
 }
 
+/* ---------- nová kontrola ---------- */
 function renderAdd(){
   app.innerHTML=
     '<div class="top"><button class="back" id="bk">‹</button><h1>Nová kontrola</h1></div>'
@@ -215,16 +207,17 @@ function renderAdd(){
     const nums=parseRange(rg.value);
     if(!name||!nums.length){alert('Zadej název výkresu a čísla svarů.');return}
     const rec={id:uid(),name:name,created:Date.now(),
-      welds:nums.map(n=>({n:n,type:type,status:'pend',photo:null}))};
+      welds:nums.map(n=>({n:n,type:type,status:'pend',label:null}))};
     records.unshift(rec);save();go({v:'detail',id:rec.id});
   };
 }
+
+/* ---------- detail ISO: seznam svarů ---------- */
 function renderDetail(id){
   const rec=records.find(r=>r.id===id);
   if(!rec)return go({v:'home'});
-  const done=rec.welds.filter(w=>w.status!=='pend').length;
   app.innerHTML='<div class="top"><button class="back" id="bk">‹</button><h1>'+esc(rec.name)+'</h1></div>'
-    +'<p class="muted" id="prog">'+done+'/'+rec.welds.length+' zkontrolováno · tlačítkem F/H přepneš typ, ťuknutím na 📸 pojmenuješ foto</p>'
+    +'<p class="muted" id="prog"></p>'
     +rec.welds.map(weldRowHTML).join('')
     +'<div style="display:flex;gap:8px;margin-top:14px">'
     +'<button class="btn sec" id="allok" style="margin:0">✓ Všechny OK</button>'
@@ -237,13 +230,23 @@ function renderDetail(id){
     }
   };
   document.getElementById('csv').onclick=exportCSV;
+  refreshProg(rec);
+}
+
+function refreshProg(rec){
+  const done=rec.welds.filter(w=>w.status!=='pend').length;
+  const p=document.getElementById('prog');
+  if(p)p.textContent=done+'/'+rec.welds.length+' zkontrolováno · F/H přepne typ, 📸 pojmenuje fotku z endoskopu';
 }
 
 function weldRowHTML(w){
   return '<div class="card" data-row="'+w.n+'">'
     +'<div class="row"><b>Svar '+w.n+'</b>'
     +'<span style="display:flex;gap:8px;align-items:center">'
-    +'<button class="typechip on" data-toggle="'+w.n+'">'+w.type+'</button>'
+    +'<span class="chip '+({ok:'ok',nok:'nok',pend:'pend'})[w.status]+'">'+({ok:'OK',nok:'NOK',pend:'—'})[w.status]+'</span>'
+    +'</span></div>'
+    +'<div class="row" style="margin-top:10px">'
+    +'<button class="typechip" data-toggle="'+w.n+'">'+w.type+'</button>'
     +'<span class="chip foto" data-lbl="'+w.n+'">'+(w.label?'📸 '+esc(w.label):'📸 Foto')+'</span>'
     +'</span></div>'
     +'<div class="oknok">'
@@ -264,8 +267,10 @@ function bindRow(rec,w){
 function refreshRow(rec,w){
   app.querySelector('[data-row="'+w.n+'"]').outerHTML=weldRowHTML(w);
   bindRow(rec,w);
-  document.getElementById('prog').textContent=
-    rec.welds.filter(x=>x.status!=='pend').length+'/'+rec.welds.length+' zkontrolováno · tlačítkem F/H přepneš typ, ťuknutím na 📸 pojmenuješ foto';
+  refreshProg(rec);
+}
+
+/* ---------- název fotky z endoskopu ---------- */
 function editLabel(rec,w){
   const m=(w.label||'').match(/^([FH]?)(\d*)$/);
   let prefix=(m&&m[1])||w.type||'H';
@@ -276,7 +281,7 @@ function editLabel(rec,w){
   sheet.innerHTML='<div class="row"><b>Foto · Svar '+w.n+'</b>'
     +'<button class="btn sec" style="width:auto;margin:0" id="lbClose">✕</button></div>'
     +'<p class="muted">Název fotky z endoskopu – vyber prefix a zadej číslo.</p>'
-    +'<div class="seg" id="lp"><button data-p="F">F</button><button data-p="H">H</button></div>'
+    +'<div class="seg" id="lp"><button data-p="F">F – automat</button><button data-p="H">H – ruční</button></div>'
     +'<input type="text" id="lnum" inputmode="numeric" placeholder="2360" value="'+esc(num)+'">'
     +'<button class="btn" id="lbSave" style="margin-top:14px">✓ Uložit</button>'
     +(w.label?'<button class="btn sec" id="lbDel" style="color:#ff7a7a">🗑 Smazat název fotky</button>':'');
@@ -289,7 +294,7 @@ function editLabel(rec,w){
   paint();
   seg.forEach(b=>b.onclick=()=>{prefix=b.dataset.p;paint()});
   const input=sheet.querySelector('#lnum');
-  input.focus();
+  setTimeout(()=>input.focus(),100);
 
   sheet.querySelector('#lbSave').onclick=()=>{
     const digits=input.value.replace(/\D/g,'');
@@ -299,51 +304,8 @@ function editLabel(rec,w){
   const del=sheet.querySelector('#lbDel');
   if(del)del.onclick=()=>{w.label=null;save();ov.remove();refreshRow(rec,w)};
 }
-}
 
-function renderWeld(id,num){
-  const rec=records.find(r=>r.id===id);
-  const w=rec&&rec.welds.find(x=>x.n===num);
-  if(!w)return go({v:'detail',id:id});
-  app.innerHTML='<div class="top"><button class="back" id="bk">‹</button><h1>Svar '+w.n+' · '+esc(rec.name)+'</h1></div>'
-    +'<div class="card"><label class="fld">Typ svaření</label>'
-    +'<div class="seg" id="ty"><button data-t="H"'+(w.type==='H'?' class="on"':'')+'>H – ruční</button>'
-    +'<button data-t="F"'+(w.type==='F'?' class="on"':'')+'>F – automat</button></div></div>'
-    +'<div class="card"><label class="fld">Výsledek kontroly</label>'
-    +'<div style="display:flex;gap:8px;margin-top:6px">'
-    +'<button class="btn ok'+(w.status==='ok'?'':' dim')+'" id="ok" style="margin:0">OK</button>'
-    +'<button class="btn nok'+(w.status==='nok'?'':' dim')+'" id="nok" style="margin:0">NOK</button></div></div>'
-    +'<div class="card"><label class="fld">Foto svaru</label>'
-    +'<div id="ph"></div>'
-    +'<button class="btn sec" id="take">📷 '+(w.photo?'Přefotit':'Vyfotit svar')+'</button>'
-    +(w.photo?'<button class="btn sec" id="rm" style="color:#ff7a7a">🗑 Smazat foto</button>':'')
-    +'</div>';
-  document.getElementById('bk').onclick=()=>go({v:'detail',id:id});
-  app.querySelectorAll('#ty button').forEach(b=>b.onclick=()=>{
-    w.type=b.dataset.t;save();
-    app.querySelectorAll('#ty button').forEach(x=>x.classList.toggle('on',x===b));
-  });
-  const setBtns=()=>{
-    document.getElementById('ok').classList.toggle('dim',w.status!=='ok');
-    document.getElementById('nok').classList.toggle('dim',w.status!=='nok');
-  };
-  document.getElementById('ok').onclick=()=>{w.status=w.status==='ok'?'pend':'ok';save();setBtns()};
-  document.getElementById('nok').onclick=()=>{w.status=w.status==='nok'?'pend':'nok';save();setBtns()};
-  const ph=document.getElementById('ph');
-  if(w.photo)photoGet(w.photo).then(d=>{if(d)ph.innerHTML='<img class="photo" src="'+d+'">'});
-  document.getElementById('take').onclick=()=>capture(async f=>{
-    showLoader('Ukládám foto…');
-    try{
-      const url=await fileToJPEG(f,1500,.72);
-      const pid=uid();await photoPut(pid,url);
-      if(w.photo)photoDel(w.photo);
-      w.photo=pid;save();hideLoader();render();
-    }catch(e){hideLoader();alert(e.message)}
-  });
-  const rm=document.getElementById('rm');
-  if(rm)rm.onclick=()=>{photoDel(w.photo);w.photo=null;save();render()};
-}
-
+/* ---------- export CSV ---------- */
 function exportCSV(){
   const rows=[['ISO','Svar','Typ','Vysledek','Foto']];
   records.forEach(r=>r.welds.forEach(w=>rows.push([r.name,w.n,w.type,
@@ -354,8 +316,8 @@ function exportCSV(){
   a.download='iso_kontroly_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
 }
-}
 
+/* ================= start ================= */
 if(location.protocol==='https:'&&'serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
